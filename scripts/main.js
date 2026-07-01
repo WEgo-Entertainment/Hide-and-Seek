@@ -162,12 +162,12 @@
     }
 
     const score = Math.floor(state.player.score);
-    state.ui.score.textContent = score;
-    state.ui.rank.textContent = window.GameRank.label(score);
-    state.ui.heat.textContent = Math.floor(state.player.heat);
-    state.ui.time.textContent = Math.floor(state.elapsed);
-    state.ui.mode.textContent = state.player.disguise ? "disguised" : "hiding";
-  }
+
+state.ui.score.textContent = score;
+state.ui.rank.textContent = window.GameRank.label(score);
+state.ui.heat.textContent = Math.floor(state.player.heat);
+state.ui.time.textContent = Math.floor(state.elapsed);
+state.ui.mode.textContent = state.player.disguise ? "disguised" : "hiding";
 
   window.GameMobile.install(state);
   window.GameMobileUI.install(state);
