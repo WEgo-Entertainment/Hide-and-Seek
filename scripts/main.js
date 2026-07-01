@@ -59,6 +59,11 @@
       this.ui.mode.textContent = "waiting";
       this.ui.difficulty.textContent = "-";
       this.ui.seekers.textContent = "0";
+
+      if (window.GameMobile) {
+        window.GameMobile.resetMove();
+        window.GameMobile.setDash(false);
+      }
     }
   };
 
@@ -68,6 +73,7 @@
   }
 
   addEventListener("resize", resize);
+  addEventListener("orientationchange", () => setTimeout(resize, 250));
   resize();
 
   addEventListener("keydown", e => {
@@ -114,6 +120,11 @@
     state.ui.difficulty.textContent = d.label;
     state.ui.seekers.textContent = d.seekerCount;
     state.ui.restart.style.display = "none";
+
+    if (window.GameMobile) {
+      window.GameMobile.resetMove();
+      window.GameMobile.setDash(false);
+    }
   }
 
   function update(dt) {
@@ -148,6 +159,8 @@
     state.ui.mode.textContent = state.player.disguise ? "disguised" : "hiding";
   }
 
+  window.GameMobile.install(state);
+  window.GameMobileUI.install(state);
   window.GameDebug.install(state);
 
   let last = performance.now();

@@ -46,15 +46,25 @@ window.GamePlayer = {
     const { clamp, rand } = window.GameUtils;
     const player = state.player;
     const keys = state.keys;
+    const mobile = window.GameMobile;
 
     let dx = 0, dy = 0;
-    if (keys.has("w") || keys.has("arrowup")) dy--;
-    if (keys.has("s") || keys.has("arrowdown")) dy++;
-    if (keys.has("a") || keys.has("arrowleft")) dx--;
-    if (keys.has("d") || keys.has("arrowright")) dx++;
+    let dash = false;
 
-    player.moving = Boolean(dx || dy);
-    player.dash = keys.has("shift");
+    if (mobile && mobile.enabled) {
+      dx = mobile.input.x;
+      dy = mobile.input.y;
+      dash = mobile.input.dash;
+    } else {
+      if (keys.has("w") || keys.has("arrowup")) dy--;
+      if (keys.has("s") || keys.has("arrowdown")) dy++;
+      if (keys.has("a") || keys.has("arrowleft")) dx--;
+      if (keys.has("d") || keys.has("arrowright")) dx++;
+      dash = keys.has("shift");
+    }
+
+    player.moving = Math.hypot(dx, dy) > 0.08;
+    player.dash = dash;
 
     const speed = player.speed * (player.dash ? 1.75 : 1);
 
