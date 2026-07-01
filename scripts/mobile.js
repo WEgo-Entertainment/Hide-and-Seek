@@ -3,15 +3,15 @@ window.GameMobile = {
   input: { x: 0, y: 0, dash: false },
   joystick: { active: false, pointerId: null, centerX: 0, centerY: 0, radius: 46 },
 
- isTouchDevice() {
-  const ua = navigator.userAgent.toLowerCase();
-  const isRealMobile =
-    /android|iphone|ipad|ipod/.test(ua);
+isTouchDevice() {
+    const ua = navigator.userAgent.toLowerCase();
+    const isRealMobile =
+      /android|iphone|ipad|ipod/.test(ua);
 
-  return isRealMobile;
-}
+    return isRealMobile;
+},
 
-  install(state) {
+install(state) {
     this.enabled = this.isTouchDevice();
     const controls = document.getElementById("mobileControls");
     if (!controls || !this.enabled) return;
