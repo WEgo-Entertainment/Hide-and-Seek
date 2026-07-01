@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Hide & Seek.io Prototype</title>
+  <title>W:E:go Backstage Hunt Prototype</title>
   <style>
     html, body {
       margin: 0;
@@ -34,7 +34,7 @@
       position: fixed;
       right: 14px;
       bottom: 12px;
-      max-width: 380px;
+      max-width: 390px;
       padding: 12px 14px;
       background: rgba(0,0,0,.45);
       border: 1px solid rgba(255,255,255,.15);
@@ -117,14 +117,14 @@
 
   <div class="menu" id="menu">
     <div class="panel">
-      <h1>Hide & Seek.io</h1>
+      <h1>W:E:go Backstage Hunt</h1>
       <div class="sub">
-        難易度を選んでスタート。鬼が増えるほど、足跡・音・ソナーから逃げる圧が強くなる。
+        鬼には視野とスタミナがある。見られなければバレにくいし、追いかけすぎた鬼は息切れする。
       </div>
       <div class="difficulty-grid">
         <button class="difficulty" data-level="easy">
           <b>Easy</b>
-          <span>鬼 3体。まずは雰囲気を掴む用。</span>
+          <span>鬼 3体。視野は控えめ、スタミナもゆるめ。</span>
         </button>
         <button class="difficulty" data-level="normal">
           <b>Normal</b>
@@ -132,7 +132,7 @@
         </button>
         <button class="difficulty" data-level="hard">
           <b>Hard</b>
-          <span>鬼 8体。足跡を雑に残すとかなり危ない。</span>
+          <span>鬼 8体。視野と索敵が強め。</span>
         </button>
         <button class="difficulty" data-level="nightmare">
           <b>Nightmare</b>
@@ -143,7 +143,7 @@
   </div>
 
   <div class="ui">
-    <div><b>Hide & Seek.io</b> prototype</div>
+    <div><b>W:E:go Backstage Hunt</b></div>
     <div>Difficulty: <span id="difficulty">-</span></div>
     <div>Seekers: <span id="seekers">0</span></div>
     <div>Score: <span id="score">0</span></div>
@@ -157,8 +157,8 @@
     WASD / 矢印キー: 移動<br>
     Space: 近くのオブジェクトに変身<br>
     Shift: ダッシュ（足跡が濃くなる）<br><br>
-    止まると安全。でも点が伸びにくい。<br>
-    動くほどスコアは増えるけど、足跡・音・気配でAIが寄ってくる。
+    鬼の白い扇形が視野。背後なら見つかりにくい。<br>
+    鬼は走ると疲れて、スタミナ切れで3〜6秒休む。
   </div>
 
   <button id="restart">もう一回</button>
@@ -180,10 +180,10 @@
   let W = innerWidth, H = innerHeight;
 
   const DIFFICULTIES = {
-    easy:      { label: "Easy",      seekerCount: 3,  speedMul: 0.92, senseMul: 0.82, sonarMul: 1.25 },
-    normal:    { label: "Normal",    seekerCount: 5,  speedMul: 1.00, senseMul: 1.00, sonarMul: 1.00 },
-    hard:      { label: "Hard",      seekerCount: 8,  speedMul: 1.08, senseMul: 1.15, sonarMul: 0.82 },
-    nightmare: { label: "Nightmare", seekerCount: 12, speedMul: 1.16, senseMul: 1.35, sonarMul: 0.62 }
+    easy:      { label: "Easy",      seekerCount: 3,  speedMul: 0.92, senseMul: 0.82, sonarMul: 1.25, staminaMul: 1.15 },
+    normal:    { label: "Normal",    seekerCount: 5,  speedMul: 1.00, senseMul: 1.00, sonarMul: 1.00, staminaMul: 1.00 },
+    hard:      { label: "Hard",      seekerCount: 8,  speedMul: 1.08, senseMul: 1.15, sonarMul: 0.82, staminaMul: 0.92 },
+    nightmare: { label: "Nightmare", seekerCount: 12, speedMul: 1.16, senseMul: 1.35, sonarMul: 0.62, staminaMul: 0.82 }
   };
 
   let difficulty = null;
@@ -209,6 +209,8 @@
   const rand = (a, b) => Math.random() * (b - a) + a;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const angleTo = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
+  const normAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
 
   const propTypes = [
     { name: "crate", w: 34, h: 34 },
@@ -255,7 +257,6 @@
       speed: 3.4,
       heat: 0,
       disguise: null,
-      caught: false,
       score: 0,
       moving: false,
       dash: false
@@ -268,10 +269,22 @@
         y: rand(100, WORLD.h - 100),
         r: 17,
         speed: rand(2.0, 2.35) * d.speedMul,
+
+        // 生き物感AI用
+        staminaMax: rand(85, 115) * d.staminaMul,
+        stamina: rand(75, 105) * d.staminaMul,
+        restTimer: 0,
+        facing: rand(-Math.PI, Math.PI),
+        lookWobble: rand(-0.6, 0.6),
+        fov: rand(0.95, 1.18), // ラジアン。約54〜68度
+        viewRange: rand(230, 310) * d.senseMul,
+
         target: null,
+        lastSeen: null,
         mode: "patrol",
         lookTimer: rand(0, 2),
         sonarTimer: rand(2, 8) * d.sonarMul,
+        wanderTimer: 0,
         vx: rand(-1, 1),
         vy: rand(-1, 1)
       });
@@ -348,8 +361,43 @@
     const len = Math.hypot(dx, dy) || 1;
     dx = dx / len * speed;
     dy = dy / len * speed;
+
     if (!blocked(e.x + dx, e.y, e.r)) e.x += dx;
+    else e.facing += rand(-1.0, 1.0);
+
     if (!blocked(e.x, e.y + dy, e.r)) e.y += dy;
+    else e.facing += rand(-1.0, 1.0);
+
+    if (Math.hypot(dx, dy) > 0.01) {
+      e.facing = Math.atan2(dy, dx);
+    }
+  }
+
+  function hasLineOfSight(a, b) {
+    // 軽めの壁判定。線分を少しずつ調べる
+    const steps = Math.ceil(dist(a, b) / 24);
+    for (let i = 1; i < steps; i++) {
+      const t = i / steps;
+      const x = a.x + (b.x - a.x) * t;
+      const y = a.y + (b.y - a.y) * t;
+      if (walls.some(w => x > w.x && x < w.x + w.w && y > w.y && y < w.y + w.h)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function canSeePlayer(s) {
+    const d = dist(s, player);
+    const hiddenBonus = player.disguise && !player.moving ? 0.55 : 1;
+    const range = s.viewRange * (1 + player.heat / 135) * hiddenBonus;
+    if (d > range) return false;
+
+    const a = angleTo(s, player);
+    const diff = Math.abs(normAngle(a - s.facing));
+    if (diff > s.fov / 2) return false;
+
+    return hasLineOfSight(s, player);
   }
 
   function tryDisguise() {
@@ -406,25 +454,83 @@
     }
   }
 
+  function chooseWanderTarget(s) {
+    s.wanderTimer = rand(1.2, 3.2);
+    const angle = s.facing + rand(-1.5, 1.5);
+    const distance = rand(120, 320);
+    s.target = {
+      x: clamp(s.x + Math.cos(angle) * distance, 60, WORLD.w - 60),
+      y: clamp(s.y + Math.sin(angle) * distance, 60, WORLD.h - 60)
+    };
+  }
+
+  function updateSeekerStamina(s, dt) {
+    if (s.mode === "rest") {
+      s.restTimer -= dt;
+      s.stamina = clamp(s.stamina + 28 * dt, 0, s.staminaMax);
+
+      // 休憩中はキョロキョロ。完全停止だけど視線だけ生きてる
+      s.facing += Math.sin(elapsed * 4 + s.lookWobble) * 0.035;
+
+      if (s.restTimer <= 0 && s.stamina > s.staminaMax * 0.45) {
+        s.mode = "patrol";
+        chooseWanderTarget(s);
+      }
+      return;
+    }
+
+    if (s.mode === "chase") s.stamina -= 22 * dt;
+    else if (s.mode === "investigate" || s.mode === "search") s.stamina -= 8 * dt;
+    else if (s.mode === "patrol") s.stamina -= 3.2 * dt;
+
+    // 疲れすぎたら休憩。だいたい3〜6秒
+    if (s.stamina <= 0) {
+      s.stamina = 0;
+      s.mode = "rest";
+      s.restTimer = rand(3, 6);
+      s.target = null;
+      pings.push({ x: s.x, y: s.y, r: 16, life: 1.1, kind: "tired" });
+    }
+  }
+
   function updateSeekers(dt) {
     const d = DIFFICULTIES[difficulty];
 
     for (const s of seekers) {
       s.sonarTimer -= dt;
       s.lookTimer -= dt;
+      s.wanderTimer -= dt;
 
-      const visibleRange = (player.disguise && !player.moving ? 72 : 190 + player.heat * 2.2) * d.senseMul;
-      const heardRange = (player.moving ? (player.dash ? 420 : 250) : 0) * d.senseMul;
+      updateSeekerStamina(s, dt);
+      if (s.mode === "rest") continue;
 
-      if (dist(s, player) < visibleRange || dist(s, player) < heardRange) {
+      const saw = canSeePlayer(s);
+      const heardRange = (player.moving ? (player.dash ? 380 : 210) : 0) * d.senseMul;
+
+      if (saw) {
         s.mode = "chase";
+        s.lastSeen = { x: player.x, y: player.y, timer: 2.0 };
         s.target = { x: player.x, y: player.y };
+      } else if (s.lastSeen) {
+        s.lastSeen.timer -= dt;
+        if (s.lastSeen.timer > 0) {
+          s.mode = "search";
+          s.target = { x: s.lastSeen.x + rand(-30, 30), y: s.lastSeen.y + rand(-30, 30) };
+        } else {
+          s.lastSeen = null;
+          if (s.mode === "chase") s.mode = "search";
+        }
+      }
+
+      if (!saw && dist(s, player) < heardRange && s.mode !== "chase") {
+        s.mode = "investigate";
+        s.target = { x: player.x + rand(-90, 90), y: player.y + rand(-90, 90) };
       }
 
       if (s.sonarTimer <= 0) {
         s.sonarTimer = rand(5, 9) * d.sonarMul;
         pings.push({ x: s.x, y: s.y, r: 25, life: 1.1, kind: "sonar" });
-        if (dist(s, player) < (360 + player.heat * 2) * d.senseMul) {
+        if (dist(s, player) < (330 + player.heat * 1.8) * d.senseMul && s.mode !== "chase") {
           s.mode = "investigate";
           s.target = { x: player.x + rand(-90, 90), y: player.y + rand(-90, 90) };
         }
@@ -432,7 +538,7 @@
 
       let freshest = null;
       for (const f of footprints) {
-        if (f.life > 0.7 && dist(s, f) < 330 * f.strength * d.senseMul) {
+        if (f.life > 0.7 && dist(s, f) < 300 * f.strength * d.senseMul) {
           if (!freshest || f.life > freshest.life) freshest = f;
         }
       }
@@ -441,12 +547,29 @@
         s.target = { x: freshest.x, y: freshest.y };
       }
 
-      if (!s.target || dist(s, s.target) < 25) {
-        s.mode = "patrol";
-        s.target = { x: rand(60, WORLD.w - 60), y: rand(60, WORLD.h - 60) };
+      // 常にうろうろ。目的地がなければ次の目的地へ
+      if (!s.target || dist(s, s.target) < 25 || s.wanderTimer <= 0) {
+        if (s.mode === "investigate") s.mode = "search";
+        if (s.mode === "search" && Math.random() < 0.55) {
+          s.target = {
+            x: clamp(s.x + rand(-220, 220), 60, WORLD.w - 60),
+            y: clamp(s.y + rand(-220, 220), 60, WORLD.h - 60)
+          };
+          s.wanderTimer = rand(0.8, 1.8);
+        } else {
+          s.mode = "patrol";
+          chooseWanderTarget(s);
+        }
       }
 
-      const speed = s.speed * (s.mode === "chase" ? 1.45 : s.mode === "investigate" ? 1.15 : 1);
+      const tiredMul = s.stamina < s.staminaMax * 0.25 ? 0.78 : 1;
+      const speed = s.speed * tiredMul * (
+        s.mode === "chase" ? 1.52 :
+        s.mode === "investigate" ? 1.10 :
+        s.mode === "search" ? 0.96 :
+        0.82
+      );
+
       moveEntity(s, s.target.x - s.x, s.target.y - s.y, speed);
 
       if (dist(s, player) < s.r + player.r + 2) {
@@ -473,7 +596,7 @@
 
     for (const p of pings) {
       p.life -= dt;
-      p.r += (p.kind === "sonar" ? 270 : 160) * dt;
+      p.r += (p.kind === "sonar" ? 270 : p.kind === "tired" ? 90 : 160) * dt;
     }
     for (let i = pings.length - 1; i >= 0; i--) {
       if (pings[i].life <= 0) pings.splice(i, 1);
@@ -522,6 +645,37 @@
     ctx.globalAlpha = 1;
   }
 
+  function drawVisionCone(s, cam) {
+    const x = s.x - cam.x, y = s.y - cam.y;
+    const range = s.mode === "rest" ? s.viewRange * 0.72 : s.viewRange;
+    ctx.save();
+    ctx.globalAlpha = s.mode === "chase" ? 0.17 : s.mode === "rest" ? 0.07 : 0.10;
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.arc(x, y, range, s.facing - s.fov / 2, s.facing + s.fov / 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawStaminaBar(s, cam) {
+    const x = s.x - cam.x;
+    const y = s.y - cam.y - 31;
+    const w = 34, h = 4;
+    ctx.fillStyle = "rgba(0,0,0,.45)";
+    ctx.fillRect(x - w/2, y, w, h);
+    ctx.fillStyle = s.mode === "rest" ? "#ffd166" : "#9be564";
+    ctx.fillRect(x - w/2, y, w * (s.stamina / s.staminaMax), h);
+
+    if (s.mode === "rest") {
+      ctx.font = "12px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#fff";
+      ctx.fillText("ハァ…", x, y - 5);
+    }
+  }
+
   function draw() {
     if (!started) {
       drawWaitingBackground();
@@ -552,6 +706,9 @@
     }
     ctx.restore();
 
+    // 視野は地面の上、キャラの下
+    for (const s of seekers) drawVisionCone(s, cam);
+
     for (const f of footprints) {
       ctx.globalAlpha = clamp(f.life / 4, 0, 1) * f.strength;
       ctx.fillStyle = "#b9d6ff";
@@ -565,7 +722,7 @@
 
     for (const ping of pings) {
       ctx.globalAlpha = clamp(ping.life, 0, 1);
-      ctx.strokeStyle = ping.kind === "sonar" ? "#f5f5f5" : "#ffdf7b";
+      ctx.strokeStyle = ping.kind === "sonar" ? "#f5f5f5" : ping.kind === "tired" ? "#ffd166" : "#ffdf7b";
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(ping.x - cam.x, ping.y - cam.y, ping.r, 0, Math.PI * 2);
@@ -592,7 +749,13 @@
     }
 
     for (const s of seekers) {
-      ctx.fillStyle = s.mode === "chase" ? "#ff6b6b" : s.mode === "investigate" ? "#ffd166" : "#8ecae6";
+      ctx.fillStyle =
+        s.mode === "chase" ? "#ff6b6b" :
+        s.mode === "investigate" ? "#ffd166" :
+        s.mode === "search" ? "#cdb4db" :
+        s.mode === "rest" ? "#777" :
+        "#8ecae6";
+
       ctx.beginPath();
       ctx.arc(s.x - cam.x, s.y - cam.y, s.r, 0, Math.PI * 2);
       ctx.fill();
@@ -600,12 +763,15 @@
       ctx.lineWidth = 3;
       ctx.stroke();
 
-      ctx.globalAlpha = 0.12;
-      ctx.fillStyle = "#fff";
+      // 向きの鼻
+      ctx.strokeStyle = "#111";
+      ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.arc(s.x - cam.x, s.y - cam.y, s.mode === "chase" ? 210 : 145, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
+      ctx.moveTo(s.x - cam.x, s.y - cam.y);
+      ctx.lineTo(s.x - cam.x + Math.cos(s.facing) * 23, s.y - cam.y + Math.sin(s.facing) * 23);
+      ctx.stroke();
+
+      drawStaminaBar(s, cam);
     }
 
     if (gameOver) {
