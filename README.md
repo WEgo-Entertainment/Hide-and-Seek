@@ -1,26 +1,37 @@
 # W:E:go Backstage Hunt Prototype
 
-Hide & Seek系ブラウザゲーム試作版です。
+ファイル分割版のHide & Seek系ブラウザゲーム試作です。
 
-## v0.3 追加要素
+## 構成
 
-- 鬼AIに視野コーンを追加
-- 鬼AIにスタミナゲージを追加
-- 追跡・調査・巡回でスタミナ消費
-- スタミナ切れで3〜6秒休憩
-- 休憩中はその場でキョロキョロする
-- 鬼が常にうろうろするように調整
-- 壁越しに見つけにくい簡易Line of Sight判定を追加
+```text
+index.html
+styles/
+  style.css
+scripts/
+  config.js
+  utils.js
+  map.js
+  player.js
+  ai.js
+  render.js
+  debug.js
+  main.js
+README.md
+```
 
-## 遊び方
+## 操作
 
 - WASD / 矢印キー: 移動
 - Space: 近くのオブジェクトに変身
 - Shift: ダッシュ
+- R: 緊急リロード
+- Esc: タイトル画面へ戻る
 
-## 難易度
+## 今回の修正
 
-- Easy: 鬼 3体
-- Normal: 鬼 5体
-- Hard: 鬼 8体
-- Nightmare: 鬼 12体
+- `index.html` からCSSとJavaScriptを分離
+- 壁に埋まりにくい安全スポーン処理を追加
+- Rキーで緊急脱出できるように追加
+- Escキーでタイトルへ戻れるように追加
+- 今後、AI・マップ・描画・デバッグを別々に更新しやすい構成に変更
