@@ -95,14 +95,14 @@
     state.keys.delete(e.key.toLowerCase());
   });
 
-  document.querySelectorAll(".difficulty").forEach(btn => {
-    btn.addEventListener("click", () => {
-      state.difficulty = btn.dataset.level;
-      state.started = true;
-      state.ui.menu.style.display = "none";
-      resetWorld();
-    });
+document.querySelectorAll(".difficulty").forEach(btn => {
+  btn.addEventListener("click", () => {
+    state.difficulty = btn.dataset.level;
+    resetWorld();
+    state.started = true;
+    state.ui.menu.style.display = "none";
   });
+});
 
   state.ui.restart.onclick = () => {
     state.backToTitle();
