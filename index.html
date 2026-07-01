@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hide & Seek.io Prototype</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #111;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #f5f5f5;
+    }
+    canvas {
+      display: block;
+      background: radial-gradient(circle at center, #222 0%, #101010 70%);
+    }
+    .ui {
+      position: fixed;
+      left: 14px;
+      top: 12px;
+      padding: 12px 14px;
+      background: rgba(0,0,0,.45);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 12px;
+      backdrop-filter: blur(8px);
+      line-height: 1.55;
+      font-size: 14px;
+      user-select: none;
+    }
+    .hint {
+      position: fixed;
+      right: 14px;
+      bottom: 12px;
+      max-width: 380px;
+      padding: 12px 14px;
+      background: rgba(0,0,0,.45);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 12px;
+      line-height: 1.55;
+      font-size: 13px;
+      color: #ddd;
+      user-select: none;
+    }
+    .menu {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(0,0,0,.72);
+      z-index: 5;
+    }
+    .panel {
+      width: min(520px, calc(100vw - 32px));
+      padding: 24px;
+      border-radius: 20px;
+      background: rgba(22,22,22,.94);
+      border: 1px solid rgba(255,255,255,.16);
+      box-shadow: 0 20px 80px rgba(0,0,0,.55);
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 30px;
+      letter-spacing: .02em;
+    }
+    .sub {
+      color: #ccc;
+      line-height: 1.55;
+      margin-bottom: 18px;
+    }
+    .difficulty-grid {
+      display: grid;
+      gap: 10px;
+    }
+    .difficulty {
+      text-align: left;
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: #fff;
+      cursor: pointer;
+      font: inherit;
+    }
+    .difficulty:hover {
+      background: rgba(255,255,255,.13);
+    }
+    .difficulty b {
+      display: block;
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+    .difficulty span {
+      color: #d0d0d0;
+      font-size: 13px;
+    }
+    #restart {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      padding: 14px 22px;
+      border: 0;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 16px;
+      cursor: pointer;
+      display: none;
+      z-index: 6;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div class="menu" id="menu">
+    <div class="panel">
+      <h1>Hide & Seek.io</h1>
+      <div class="sub">
+        難易度を選んでスタート。鬼が増えるほど、足跡・音・ソナーから逃げる圧が強くなる。
+      </div>
+      <div class="difficulty-grid">
+        <button class="difficulty" data-level="easy">
+          <b>Easy</b>
+          <span>鬼 3体。まずは雰囲気を掴む用。</span>
+        </button>
+        <button class="difficulty" data-level="normal">
+          <b>Normal</b>
+          <span>鬼 5体。基本バランス。</span>
+        </button>
+        <button class="difficulty" data-level="hard">
+          <b>Hard</b>
+          <span>鬼 8体。足跡を雑に残すとかなり危ない。</span>
+        </button>
+        <button class="difficulty" data-level="nightmare">
+          <b>Nightmare</b>
+          <span>鬼 12体。逃げ場、だいぶない。</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ui">
+    <div><b>Hide & Seek.io</b> prototype</div>
+    <div>Difficulty: <span id="difficulty">-</span></div>
+    <div>Seekers: <span id="seekers">0</span></div>
+    <div>Score: <span id="score">0</span></div>
+    <div>Heat: <span id="heat">0</span>%</div>
+    <div>Time: <span id="time">0</span>s</div>
+    <div>Mode: <span id="mode">waiting</span></div>
+  </div>
+
+  <div class="hint">
+    <b>操作</b><br>
+    WASD / 矢印キー: 移動<br>
+    Space: 近くのオブジェクトに変身<br>
+    Shift: ダッシュ（足跡が濃くなる）<br><br>
+    止まると安全。でも点が伸びにくい。<br>
+    動くほどスコアは増えるけど、足跡・音・気配でAIが寄ってくる。
+  </div>
+
+  <button id="restart">もう一回</button>
+
+<script>
+(() => {
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const scoreEl = document.getElementById("score");
+  const heatEl = document.getElementById("heat");
+  const timeEl = document.getElementById("time");
+  const modeEl = document.getElementById("mode");
+  const difficultyEl = document.getElementById("difficulty");
+  const seekersEl = document.getElementById("seekers");
+  const restartBtn = document.getElementById("restart");
+  const menu = document.getElementById("menu");
+
+  const WORLD = { w: 2200, h: 1400 };
+  let W = innerWidth, H = innerHeight;
+
+  const DIFFICULTIES = {
+    easy:      { label: "Easy",      seekerCount: 3,  speedMul: 0.92, senseMul: 0.82, sonarMul: 1.25 },
+    normal:    { label: "Normal",    seekerCount: 5,  speedMul: 1.00, senseMul: 1.00, sonarMul: 1.00 },
+    hard:      { label: "Hard",      seekerCount: 8,  speedMul: 1.08, senseMul: 1.15, sonarMul: 0.82 },
+    nightmare: { label: "Nightmare", seekerCount: 12, speedMul: 1.16, senseMul: 1.35, sonarMul: 0.62 }
+  };
+
+  let difficulty = null;
+  let started = false;
+
+  function resize() {
+    W = canvas.width = innerWidth;
+    H = canvas.height = innerHeight;
+  }
+  addEventListener("resize", resize);
+  resize();
+
+  const keys = new Set();
+  addEventListener("keydown", e => {
+    keys.add(e.key.toLowerCase());
+    if (e.code === "Space") {
+      e.preventDefault();
+      tryDisguise();
+    }
+  });
+  addEventListener("keyup", e => keys.delete(e.key.toLowerCase()));
+
+  const rand = (a, b) => Math.random() * (b - a) + a;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+  const propTypes = [
+    { name: "crate", w: 34, h: 34 },
+    { name: "barrel", w: 28, h: 38 },
+    { name: "plant", w: 30, h: 44 },
+    { name: "box", w: 46, h: 28 }
+  ];
+
+  let props, walls, player, seekers, footprints, pings, elapsed, gameOver;
+
+  function resetWorld() {
+    props = [];
+    walls = [];
+    seekers = [];
+    footprints = [];
+    pings = [];
+    elapsed = 0;
+    gameOver = false;
+
+    for (let i = 0; i < 130; i++) {
+      const t = propTypes[Math.floor(Math.random() * propTypes.length)];
+      props.push({
+        ...t,
+        x: rand(80, WORLD.w - 80),
+        y: rand(80, WORLD.h - 80),
+        rot: rand(-0.15, 0.15),
+        suspicious: 0
+      });
+    }
+
+    for (let i = 0; i < 26; i++) {
+      walls.push({
+        x: rand(120, WORLD.w - 240),
+        y: rand(120, WORLD.h - 200),
+        w: rand(70, 210),
+        h: rand(40, 120)
+      });
+    }
+
+    player = {
+      x: WORLD.w * 0.5,
+      y: WORLD.h * 0.55,
+      r: 14,
+      speed: 3.4,
+      heat: 0,
+      disguise: null,
+      caught: false,
+      score: 0,
+      moving: false,
+      dash: false
+    };
+
+    const d = DIFFICULTIES[difficulty];
+    for (let i = 0; i < d.seekerCount; i++) {
+      seekers.push({
+        x: rand(100, WORLD.w - 100),
+        y: rand(100, WORLD.h - 100),
+        r: 17,
+        speed: rand(2.0, 2.35) * d.speedMul,
+        target: null,
+        mode: "patrol",
+        lookTimer: rand(0, 2),
+        sonarTimer: rand(2, 8) * d.sonarMul,
+        vx: rand(-1, 1),
+        vy: rand(-1, 1)
+      });
+    }
+
+    difficultyEl.textContent = d.label;
+    seekersEl.textContent = d.seekerCount;
+    restartBtn.style.display = "none";
+  }
+
+  document.querySelectorAll(".difficulty").forEach(btn => {
+    btn.addEventListener("click", () => {
+      difficulty = btn.dataset.level;
+      started = true;
+      menu.style.display = "none";
+      resetWorld();
+    });
+  });
+
+  function camera() {
+    return {
+      x: clamp(player.x - W / 2, 0, WORLD.w - W),
+      y: clamp(player.y - H / 2, 0, WORLD.h - H)
+    };
+  }
+
+  function drawProp(p, cam, ghost=false) {
+    const x = p.x - cam.x, y = p.y - cam.y;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(p.rot || 0);
+    ctx.globalAlpha = ghost ? 0.65 : 1;
+    ctx.lineWidth = 2;
+
+    if (p.name === "barrel") {
+      ctx.beginPath();
+      ctx.ellipse(0, 0, p.w/2, p.h/2, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "#80664b";
+      ctx.fill();
+      ctx.strokeStyle = "#d7c0a5";
+      ctx.stroke();
+    } else if (p.name === "plant") {
+      ctx.fillStyle = "#755b42";
+      ctx.fillRect(-p.w/2, 4, p.w, p.h/2);
+      ctx.fillStyle = "#5bb77b";
+      ctx.beginPath();
+      ctx.arc(-8, -8, 14, 0, Math.PI * 2);
+      ctx.arc(8, -8, 14, 0, Math.PI * 2);
+      ctx.arc(0, -18, 14, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = p.name === "crate" ? "#9a7a4f" : "#737373";
+      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      ctx.strokeStyle = "#e1d4bd";
+      ctx.strokeRect(-p.w/2, -p.h/2, p.w, p.h);
+    }
+
+    if (p.suspicious > 0) {
+      ctx.globalAlpha = clamp(p.suspicious, 0, 1);
+      ctx.strokeStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(0, 0, Math.max(p.w, p.h) * 0.75, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function blocked(x, y, r) {
+    if (x < r || y < r || x > WORLD.w - r || y > WORLD.h - r) return true;
+    return walls.some(w => x + r > w.x && x - r < w.x + w.w && y + r > w.y && y - r < w.y + w.h);
+  }
+
+  function moveEntity(e, dx, dy, speed) {
+    const len = Math.hypot(dx, dy) || 1;
+    dx = dx / len * speed;
+    dy = dy / len * speed;
+    if (!blocked(e.x + dx, e.y, e.r)) e.x += dx;
+    if (!blocked(e.x, e.y + dy, e.r)) e.y += dy;
+  }
+
+  function tryDisguise() {
+    if (!started || gameOver) return;
+    let nearest = null;
+    let best = 62;
+    for (const p of props) {
+      const d = dist(player, p);
+      if (d < best) {
+        best = d;
+        nearest = p;
+      }
+    }
+    if (nearest) {
+      player.disguise = { ...nearest, x: player.x, y: player.y };
+      player.heat = Math.min(100, player.heat + 18);
+      pings.push({ x: player.x, y: player.y, r: 20, life: 1, kind: "noise" });
+    }
+  }
+
+  function updatePlayer(dt) {
+    let dx = 0, dy = 0;
+    if (keys.has("w") || keys.has("arrowup")) dy--;
+    if (keys.has("s") || keys.has("arrowdown")) dy++;
+    if (keys.has("a") || keys.has("arrowleft")) dx--;
+    if (keys.has("d") || keys.has("arrowright")) dx++;
+
+    player.moving = dx || dy;
+    player.dash = keys.has("shift");
+    const speed = player.speed * (player.dash ? 1.75 : 1);
+
+    if (player.moving) {
+      moveEntity(player, dx, dy, speed);
+      player.disguise = player.disguise ? { ...player.disguise, x: player.x, y: player.y } : null;
+
+      const heatAdd = player.dash ? 32 : 12;
+      player.heat = clamp(player.heat + heatAdd * dt, 0, 100);
+      if (Math.random() < (player.dash ? 0.72 : 0.28)) {
+        footprints.push({
+          x: player.x + rand(-3, 3),
+          y: player.y + rand(-3, 3),
+          life: player.dash ? 4.2 : 2.4,
+          strength: player.dash ? 1 : 0.55
+        });
+      }
+      player.score += dt * (player.dash ? 22 : 13);
+    } else {
+      player.heat = clamp(player.heat - 15 * dt, 0, 100);
+      player.score += dt * (player.heat > 55 ? 3 : 5);
+    }
+
+    if (player.disguise && !player.moving) {
+      player.score += dt * 7;
+    }
+  }
+
+  function updateSeekers(dt) {
+    const d = DIFFICULTIES[difficulty];
+
+    for (const s of seekers) {
+      s.sonarTimer -= dt;
+      s.lookTimer -= dt;
+
+      const visibleRange = (player.disguise && !player.moving ? 72 : 190 + player.heat * 2.2) * d.senseMul;
+      const heardRange = (player.moving ? (player.dash ? 420 : 250) : 0) * d.senseMul;
+
+      if (dist(s, player) < visibleRange || dist(s, player) < heardRange) {
+        s.mode = "chase";
+        s.target = { x: player.x, y: player.y };
+      }
+
+      if (s.sonarTimer <= 0) {
+        s.sonarTimer = rand(5, 9) * d.sonarMul;
+        pings.push({ x: s.x, y: s.y, r: 25, life: 1.1, kind: "sonar" });
+        if (dist(s, player) < (360 + player.heat * 2) * d.senseMul) {
+          s.mode = "investigate";
+          s.target = { x: player.x + rand(-90, 90), y: player.y + rand(-90, 90) };
+        }
+      }
+
+      let freshest = null;
+      for (const f of footprints) {
+        if (f.life > 0.7 && dist(s, f) < 330 * f.strength * d.senseMul) {
+          if (!freshest || f.life > freshest.life) freshest = f;
+        }
+      }
+      if (freshest && s.mode !== "chase") {
+        s.mode = "investigate";
+        s.target = { x: freshest.x, y: freshest.y };
+      }
+
+      if (!s.target || dist(s, s.target) < 25) {
+        s.mode = "patrol";
+        s.target = { x: rand(60, WORLD.w - 60), y: rand(60, WORLD.h - 60) };
+      }
+
+      const speed = s.speed * (s.mode === "chase" ? 1.45 : s.mode === "investigate" ? 1.15 : 1);
+      moveEntity(s, s.target.x - s.x, s.target.y - s.y, speed);
+
+      if (dist(s, player) < s.r + player.r + 2) {
+        endGame();
+      }
+
+      if (s.lookTimer <= 0) {
+        s.lookTimer = rand(0.8, 1.5);
+        for (const p of props) {
+          if (dist(s, p) < 85 && Math.random() < 0.14) p.suspicious = 1;
+        }
+      }
+    }
+  }
+
+  function update(dt) {
+    if (!started || gameOver) return;
+    elapsed += dt;
+    updatePlayer(dt);
+    updateSeekers(dt);
+
+    for (const f of footprints) f.life -= dt;
+    while (footprints.length && footprints[0].life <= 0) footprints.shift();
+
+    for (const p of pings) {
+      p.life -= dt;
+      p.r += (p.kind === "sonar" ? 270 : 160) * dt;
+    }
+    for (let i = pings.length - 1; i >= 0; i--) {
+      if (pings[i].life <= 0) pings.splice(i, 1);
+    }
+
+    for (const p of props) p.suspicious = Math.max(0, p.suspicious - dt);
+
+    scoreEl.textContent = Math.floor(player.score);
+    heatEl.textContent = Math.floor(player.heat);
+    timeEl.textContent = Math.floor(elapsed);
+    modeEl.textContent = player.disguise ? "disguised" : "hiding";
+  }
+
+  function endGame() {
+    gameOver = true;
+    restartBtn.style.display = "block";
+    restartBtn.textContent = `捕まった！ Score ${Math.floor(player.score)} / 難易度選択へ`;
+  }
+
+  restartBtn.onclick = () => {
+    gameOver = false;
+    started = false;
+    difficulty = null;
+    restartBtn.style.display = "none";
+    menu.style.display = "grid";
+    scoreEl.textContent = "0";
+    heatEl.textContent = "0";
+    timeEl.textContent = "0";
+    modeEl.textContent = "waiting";
+    difficultyEl.textContent = "-";
+    seekersEl.textContent = "0";
+  };
+
+  function drawWaitingBackground() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = "#151515";
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 0.08;
+    ctx.strokeStyle = "#fff";
+    for (let x = 0; x < W; x += 80) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    }
+    for (let y = 0; y < H; y += 80) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function draw() {
+    if (!started) {
+      drawWaitingBackground();
+      requestAnimationFrame(loop);
+      return;
+    }
+
+    const cam = camera();
+    ctx.clearRect(0, 0, W, H);
+
+    ctx.save();
+    ctx.translate(-cam.x, -cam.y);
+
+    ctx.strokeStyle = "rgba(255,255,255,.05)";
+    ctx.lineWidth = 1;
+    for (let x = 0; x < WORLD.w; x += 80) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, WORLD.h); ctx.stroke();
+    }
+    for (let y = 0; y < WORLD.h; y += 80) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WORLD.w, y); ctx.stroke();
+    }
+
+    ctx.fillStyle = "#292929";
+    ctx.strokeStyle = "#555";
+    for (const w of walls) {
+      ctx.fillRect(w.x, w.y, w.w, w.h);
+      ctx.strokeRect(w.x, w.y, w.w, w.h);
+    }
+    ctx.restore();
+
+    for (const f of footprints) {
+      ctx.globalAlpha = clamp(f.life / 4, 0, 1) * f.strength;
+      ctx.fillStyle = "#b9d6ff";
+      ctx.beginPath();
+      ctx.ellipse(f.x - cam.x, f.y - cam.y, 5, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    for (const p of props) drawProp(p, cam);
+
+    for (const ping of pings) {
+      ctx.globalAlpha = clamp(ping.life, 0, 1);
+      ctx.strokeStyle = ping.kind === "sonar" ? "#f5f5f5" : "#ffdf7b";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(ping.x - cam.x, ping.y - cam.y, ping.r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    if (player.disguise) {
+      drawProp(player.disguise, cam, true);
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(player.x - cam.x, player.y - cam.y, player.r + 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.fillStyle = "#f2f2f2";
+      ctx.beginPath();
+      ctx.arc(player.x - cam.x, player.y - cam.y, player.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#111";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+
+    for (const s of seekers) {
+      ctx.fillStyle = s.mode === "chase" ? "#ff6b6b" : s.mode === "investigate" ? "#ffd166" : "#8ecae6";
+      ctx.beginPath();
+      ctx.arc(s.x - cam.x, s.y - cam.y, s.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#111";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.globalAlpha = 0.12;
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(s.x - cam.x, s.y - cam.y, s.mode === "chase" ? 210 : 145, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    if (gameOver) {
+      ctx.fillStyle = "rgba(0,0,0,.55)";
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.font = "700 42px system-ui";
+      ctx.fillText("CAUGHT", W / 2, H / 2 - 70);
+      ctx.font = "18px system-ui";
+      ctx.fillText("欲張るほどバレる。止まるほど伸びない。", W / 2, H / 2 - 36);
+    }
+
+    requestAnimationFrame(loop);
+  }
+
+  let last = performance.now();
+  function loop(now = performance.now()) {
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+    update(dt);
+    draw();
+  }
+
+  loop();
+})();
+</script>
+</body>
+</html>
