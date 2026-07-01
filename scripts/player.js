@@ -51,16 +51,16 @@ window.GamePlayer = {
     let dx = 0, dy = 0;
     let dash = false;
 
-  if (mobile && mobile.enabled &&
-    (Math.abs(mobile.input.x) > 0.01 ||
-     Math.abs(mobile.input.y) > 0.01 ||
-     mobile.input.dash)) {
+    if (mobile && mobile.enabled &&
+        (Math.abs(mobile.input.x) > 0.01 ||
+         Math.abs(mobile.input.y) > 0.01 ||
+         mobile.input.dash)) {
 
-  dx = mobile.input.x;
-  dy = mobile.input.y;
-  dash = mobile.input.dash;
+      dx = mobile.input.x;
+      dy = mobile.input.y;
+      dash = mobile.input.dash;
 
-} else {
+    } else {
       if (keys.has("w") || keys.has("arrowup")) dy--;
       if (keys.has("s") || keys.has("arrowdown")) dy++;
       if (keys.has("a") || keys.has("arrowleft")) dx--;

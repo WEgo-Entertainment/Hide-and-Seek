@@ -6,6 +6,7 @@ window.GameMobileUI = {
     const joystick = document.getElementById("joystick");
     const dashButton = document.getElementById("dashButton");
     const disguiseButton = document.getElementById("disguiseButton");
+
     if (!joystick || !dashButton || !disguiseButton) return;
 
     this.joystick = joystick;
@@ -16,12 +17,14 @@ window.GameMobileUI = {
     joystick.addEventListener("pointerdown", e => {
       e.preventDefault();
       joystick.setPointerCapture(e.pointerId);
+
       const rect = joystick.getBoundingClientRect();
       mobile.joystick.active = true;
       mobile.joystick.pointerId = e.pointerId;
       mobile.joystick.centerX = rect.left + rect.width / 2;
       mobile.joystick.centerY = rect.top + rect.height / 2;
       mobile.joystick.radius = rect.width * 0.39;
+
       mobile.setMoveFromPointer(e.clientX, e.clientY);
     });
 
@@ -43,8 +46,15 @@ window.GameMobileUI = {
       mobile.resetMove();
     });
 
-    const dashOn = e => { e.preventDefault(); mobile.setDash(true); };
-    const dashOff = e => { e.preventDefault(); mobile.setDash(false); };
+    const dashOn = e => {
+      e.preventDefault();
+      mobile.setDash(true);
+    };
+
+    const dashOff = e => {
+      e.preventDefault();
+      mobile.setDash(false);
+    };
 
     dashButton.addEventListener("pointerdown", dashOn);
     dashButton.addEventListener("pointerup", dashOff);

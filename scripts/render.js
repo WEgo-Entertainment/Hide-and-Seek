@@ -101,6 +101,41 @@ window.GameRender = {
     }
   },
 
+  drawGameOver(state) {
+    const { ctx, W, H } = state;
+    const score = Math.floor(state.player.score);
+    const rank = window.GameRank.get(score);
+    const next = window.GameRank.next(score);
+
+    ctx.fillStyle = "rgba(0,0,0,.58)";
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.textAlign = "center";
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "700 42px system-ui";
+    ctx.fillText("捕まっちゃった！", W / 2, H / 2 - 104);
+
+    ctx.font = "22px system-ui";
+    ctx.fillText(`Score ${score}`, W / 2, H / 2 - 64);
+
+    ctx.fillStyle = rank.color;
+    ctx.font = "700 34px system-ui";
+    ctx.fillText(`${rank.emoji} ${rank.name}`, W / 2, H / 2 - 18);
+
+    ctx.fillStyle = "#ddd";
+    ctx.font = "15px system-ui";
+
+    if (next) {
+      ctx.fillText(`Next: ${next.emoji} ${next.name} / ${next.min}pt`, W / 2, H / 2 + 18);
+    } else {
+      ctx.fillText("最高ランク到達！", W / 2, H / 2 + 18);
+    }
+
+    ctx.font = "14px system-ui";
+    ctx.fillText("欲張るほどバレる。止まるほど伸びない。", W / 2, H / 2 + 50);
+  },
+
   draw(state) {
     const { ctx, W, H } = state;
     const { WORLD } = window.GameConfig;
@@ -207,14 +242,7 @@ window.GameRender = {
     }
 
     if (state.gameOver) {
-      ctx.fillStyle = "rgba(0,0,0,.55)";
-      ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = "#fff";
-      ctx.textAlign = "center";
-      ctx.font = "700 42px system-ui";
-      ctx.fillText("CAUGHT", W / 2, H / 2 - 70);
-      ctx.font = "18px system-ui";
-      ctx.fillText("欲張るほどバレる。止まるほど伸びない。", W / 2, H / 2 - 36);
+      this.drawGameOver(state);
     }
   }
 };

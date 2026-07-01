@@ -22,6 +22,7 @@
 
     ui: {
       score: document.getElementById("score"),
+      rank: document.getElementById("rank"),
       heat: document.getElementById("heat"),
       time: document.getElementById("time"),
       mode: document.getElementById("mode"),
@@ -44,7 +45,7 @@
     endGame() {
       this.gameOver = true;
       this.ui.restart.style.display = "block";
-      this.ui.restart.textContent = `捕まった！ Score ${Math.floor(this.player.score)} / 難易度選択へ`;
+      this.ui.restart.textContent = `捕まっちゃった！ Score ${Math.floor(this.player.score)} / 難易度選択へ`;
     },
 
     backToTitle() {
@@ -54,6 +55,7 @@
       this.ui.restart.style.display = "none";
       this.ui.menu.style.display = "grid";
       this.ui.score.textContent = "0";
+      this.ui.rank.textContent = "🌱 Invisible";
       this.ui.heat.textContent = "0";
       this.ui.time.textContent = "0";
       this.ui.mode.textContent = "waiting";
@@ -76,33 +78,32 @@
   addEventListener("orientationchange", () => setTimeout(resize, 250));
   resize();
 
- addEventListener("keydown", e => {
-  const key = e.key.toLowerCase();
+  addEventListener("keydown", e => {
+    const key = e.key.toLowerCase();
 
-  if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(key)) {
-    e.preventDefault();
-  }
+    if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(key)) {
+      e.preventDefault();
+    }
 
-  state.keys.add(key);
+    state.keys.add(key);
 
- if (e.code === "Space" || key === " ") {
-  window.GamePlayer.tryDisguise(state);
-}
-});
-
+    if (e.code === "Space" || key === " ") {
+      window.GamePlayer.tryDisguise(state);
+    }
+  });
 
   addEventListener("keyup", e => {
     state.keys.delete(e.key.toLowerCase());
   });
 
-document.querySelectorAll(".difficulty").forEach(btn => {
-  btn.addEventListener("click", () => {
-    state.difficulty = btn.dataset.level;
-    resetWorld();
-    state.started = true;
-    state.ui.menu.style.display = "none";
+  document.querySelectorAll(".difficulty").forEach(btn => {
+    btn.addEventListener("click", () => {
+      state.difficulty = btn.dataset.level;
+      resetWorld();
+      state.started = true;
+      state.ui.menu.style.display = "none";
+    });
   });
-});
 
   state.ui.restart.onclick = () => {
     state.backToTitle();
@@ -125,6 +126,7 @@ document.querySelectorAll(".difficulty").forEach(btn => {
     const d = window.GameConfig.DIFFICULTIES[state.difficulty];
     state.ui.difficulty.textContent = d.label;
     state.ui.seekers.textContent = d.seekerCount;
+    state.ui.rank.textContent = "🌱 Invisible";
     state.ui.restart.style.display = "none";
 
     if (window.GameMobile) {
@@ -159,7 +161,9 @@ document.querySelectorAll(".difficulty").forEach(btn => {
       p.suspicious = Math.max(0, p.suspicious - dt);
     }
 
-    state.ui.score.textContent = Math.floor(state.player.score);
+    const score = Math.floor(state.player.score);
+    state.ui.score.textContent = score;
+    state.ui.rank.textContent = window.GameRank.label(score);
     state.ui.heat.textContent = Math.floor(state.player.heat);
     state.ui.time.textContent = Math.floor(state.elapsed);
     state.ui.mode.textContent = state.player.disguise ? "disguised" : "hiding";
