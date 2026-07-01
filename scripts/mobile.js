@@ -3,9 +3,13 @@ window.GameMobile = {
   input: { x: 0, y: 0, dash: false },
   joystick: { active: false, pointerId: null, centerX: 0, centerY: 0, radius: 46 },
 
-  isTouchDevice() {
-    return "ontouchstart" in window || navigator.maxTouchPoints > 0 || window.matchMedia("(pointer: coarse)").matches;
-  },
+ isTouchDevice() {
+  const ua = navigator.userAgent.toLowerCase();
+  const isRealMobile =
+    /android|iphone|ipad|ipod/.test(ua);
+
+  return isRealMobile;
+}
 
   install(state) {
     this.enabled = this.isTouchDevice();
