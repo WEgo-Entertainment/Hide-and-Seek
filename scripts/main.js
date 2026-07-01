@@ -76,14 +76,20 @@
   addEventListener("orientationchange", () => setTimeout(resize, 250));
   resize();
 
-  addEventListener("keydown", e => {
-    state.keys.add(e.key.toLowerCase());
+ addEventListener("keydown", e => {
+  const key = e.key.toLowerCase();
 
-    if (e.code === "Space") {
-      e.preventDefault();
-      window.GamePlayer.tryDisguise(state);
-    }
-  });
+  if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(key)) {
+    e.preventDefault();
+  }
+
+  state.keys.add(key);
+
+  if (e.code === "Space") {
+    window.GamePlayer.tryDisguise(state);
+  }
+});
+
 
   addEventListener("keyup", e => {
     state.keys.delete(e.key.toLowerCase());
