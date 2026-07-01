@@ -85,9 +85,9 @@
 
   state.keys.add(key);
 
-  if (e.code === "Space") {
-    window.GamePlayer.tryDisguise(state);
-  }
+ if (e.code === "Space" || key === " ") {
+  window.GamePlayer.tryDisguise(state);
+}
 });
 
 
